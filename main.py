@@ -117,6 +117,21 @@ parser.add_argument('--ckpt_nmbr',
                     default=None,
                     help='Checkpoint number we want to use for inference. '
                          'Might be None(unspecified), then the latest available will be used.')
+parser.add_argument('--reencode',
+                    dest='reencode',
+                    type=int,
+                    default=0,
+                    help='Enable reencoding of images for n times or until fixed point is reached')
+parser.add_argument('--reencode_steps',
+                    dest='reencode_steps',
+                    type=int,
+                    default=1,
+                    help='Enable saving of every stylized picture in reencoding')
+parser.add_argument('--resize_to_original',
+                    dest='resize_to_original',
+                    type=bool,
+                    default=False,
+                    help='Enable to resize the result to its original resolution')
 
 args = parser.parse_args()
 
@@ -132,9 +147,9 @@ def main(_):
             model.train(args, ckpt_nmbr=args.ckpt_nmbr)
         if args.phase == 'inference' or args.phase == 'test':
             print("Inference.")
-            model.inference(args, args.inference_images_dir, resize_to_original=False,
+            model.inference(args, args.inference_images_dir, resize_to_original=args.resize_to_original,
                             to_save_dir=args.save_dir,
-                            ckpt_nmbr=args.ckpt_nmbr)
+                            ckpt_nmbr=args.ckpt_nmbr, reencode=args.reencode, reencode_steps=args.reencode_steps)
 
         if args.phase == 'inference_on_frames' or args.phase == 'test_on_frames':
             print("Inference on frames sequence.")

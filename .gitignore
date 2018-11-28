@@ -108,3 +108,13 @@ venv.bak/
 models
 logs
 evaluation/evaluation_data
+
+## Mac files
+.DS_store
+
+##test data
+data/*
+!data/README.txt
+
+##swap from vim
+*.swp

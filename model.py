@@ -15,6 +15,8 @@ from utils import *
 import prepare_dataset
 import img_augm
 
+import copy
+
 
 class Artgan(object):
     def __init__(self, sess, args):
@@ -440,12 +442,15 @@ class Artgan(object):
 
         print("Inference is finished.")
 
-    def inference(self, args, path_to_folder, to_save_dir=None, resize_to_original=True,
-                  ckpt_nmbr=None):
+    def inference(self, args, path_to_folder, to_save_dir=None, to_int_dir=None, resize_to_original=True,
+                  ckpt_nmbr=None, reencode=None, reencode_steps=1):
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
-        print("Start inference.")
+        if reencode==None:
+            print("Start inference.")
+        else:
+            print("Start inference with %i reencodings." % reencode)
 
         if self.load(self.checkpoint_dir, ckpt_nmbr):
             print(" [*] Load SUCCESS")
@@ -459,16 +464,22 @@ class Artgan(object):
         if to_save_dir is None:
             to_save_dir = os.path.join(self.root_dir, self.model_name,
                                        'inference_ckpt%d_sz%d' % (self.initial_step, self.image_size))
+        # Create folder to store intermediate steps.
+        if to_int_dir is None:
+            to_int_dir = os.path.join(to_save_dir,
+                                       'intermediate')
 
         if not os.path.exists(to_save_dir):
             os.makedirs(to_save_dir)
+        if not os.path.exists(to_int_dir):
+            os.makedirs(to_int_dir)
 
         names = []
         for d in path_to_folder:
             names += glob(os.path.join(d, '*'))
         names = [x for x in names if os.path.basename(x)[0] != '.']
         names.sort()
-        for img_idx, img_path in enumerate(tqdm(names)):
+        for img_idx, img_path in enumerate(tqdm(names, desc='images')):
             img = scipy.misc.imread(img_path, mode='RGB')
             img_shape = img.shape[:2]
 
@@ -477,11 +488,28 @@ class Artgan(object):
             img = scipy.misc.imresize(img, size=alpha)
             img = np.expand_dims(img, axis=0)
 
-            img = self.sess.run(
-                self.output_photo,
-                feed_dict={
-                    self.input_photo: normalize_arr_of_imgs(img),
-                })
+            ## This is where the magic happens
+            for i in tqdm(range(reencode), desc='reencoding'):
+                img = self.sess.run(
+                    self.output_photo,
+                    feed_dict={
+                        self.input_photo: normalize_arr_of_imgs(img),
+                    })
+                img_old = copy.copy(img)
+                if reencode_steps != 0:
+                    if i % reencode_steps == 0:
+                        intermediate = img[0]
+                        intermediate = denormalize_arr_of_imgs(intermediate)
+                        if resize_to_original:
+                            intermediate = scipy.misc.imresize(intermediate, size=img_shape)
+                        else:
+                            pass
+                        img_name = os.path.basename(img_path)
+                        scipy.misc.imsave(os.path.join(to_int_dir, img_name[:-4] + ("_intermediate_s=%i.jpg" % (i + 1))), intermediate)
+                    else:
+                        pass
+                else:
+                    pass
 
             img = img[0]
             img = denormalize_arr_of_imgs(img)
