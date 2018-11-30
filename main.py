@@ -120,18 +120,23 @@ parser.add_argument('--ckpt_nmbr',
 parser.add_argument('--reencode',
                     dest='reencode',
                     type=int,
-                    default=0,
+                    default=1,
                     help='Enable reencoding of images for n times or until fixed point is reached')
 parser.add_argument('--reencode_steps',
                     dest='reencode_steps',
                     type=int,
-                    default=1,
+                    default=0,
                     help='Enable saving of every stylized picture in reencoding')
 parser.add_argument('--resize_to_original',
                     dest='resize_to_original',
                     type=bool,
                     default=False,
                     help='Enable to resize the result to its original resolution')
+parser.add_argument('--embeddings',
+                    dest='embeddings',
+                    type=bool,
+                    default=False,
+                    help='Save embeddings for tsne respresentation and output them into a separate file')
 
 args = parser.parse_args()
 
@@ -149,7 +154,7 @@ def main(_):
             print("Inference.")
             model.inference(args, args.inference_images_dir, resize_to_original=args.resize_to_original,
                             to_save_dir=args.save_dir,
-                            ckpt_nmbr=args.ckpt_nmbr, reencode=args.reencode, reencode_steps=args.reencode_steps)
+                            ckpt_nmbr=args.ckpt_nmbr, reencode=args.reencode, reencode_steps=args.reencode_steps, embeddings=args.embeddings)
 
         if args.phase == 'inference_on_frames' or args.phase == 'test_on_frames':
             print("Inference on frames sequence.")

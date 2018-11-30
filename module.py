@@ -67,6 +67,7 @@ def decoder(features, options, reuse=True, name="decoder"):
 
         # Now stack 9 residual blocks
         num_kernels = features.get_shape().as_list()[-1]
+        print(features.get_shape())
         r1 = residule_block(features, num_kernels, name='g_r1')
         r2 = residule_block(r1, num_kernels, name='g_r2')
         r3 = residule_block(r2, num_kernels, name='g_r3')
