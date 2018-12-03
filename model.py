@@ -451,7 +451,7 @@ class Artgan(object):
         print("Inference is finished.")
 
     def inference(self, args, path_to_folder, to_save_dir=None, to_int_dir=None, resize_to_original=True,
-                  ckpt_nmbr=None, reencode=None, reencode_steps=1, embeddings=False):
+                  ckpt_nmbr=None, reencode=None, reencode_steps=1, embeddings=False, log=False, logs_dir=self.logs_dir):
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)

@@ -117,6 +117,9 @@ parser.add_argument('--ckpt_nmbr',
                     default=None,
                     help='Checkpoint number we want to use for inference. '
                          'Might be None(unspecified), then the latest available will be used.')
+
+
+# ========================= RESAMPLING PARAMETERS ========================= #
 parser.add_argument('--reencode',
                     dest='reencode',
                     type=int,
@@ -138,6 +141,18 @@ parser.add_argument('--embeddings',
                     default=False,
                     help='Save embeddings for tsne respresentation and output them into a separate file')
 
+# ========================= LOGGING PARAMETERS ========================= #
+parser.add_argument('--log',
+                    dest='log',
+                    type=bool,
+                    default=False,
+                    help='Enable logging of embeddings')
+parser.add_argument('--log_dir',
+                    dest='log_dir',
+                    type=parse_list,
+                    default=['./data/log/'],
+                    help='set directory where logs shall be placed')
+
 args = parser.parse_args()
 
 
@@ -153,8 +168,9 @@ def main(_):
         if args.phase == 'inference' or args.phase == 'test':
             print("Inference.")
             model.inference(args, args.inference_images_dir, resize_to_original=args.resize_to_original,
-                            to_save_dir=args.save_dir,
-                            ckpt_nmbr=args.ckpt_nmbr, reencode=args.reencode, reencode_steps=args.reencode_steps, embeddings=args.embeddings)
+                            to_save_dir=args.save_dir, ckpt_nmbr=args.ckpt_nmbr, reencode=args.reencode,
+                            reencode_steps=args.reencode_steps, embeddings=args.embeddings,
+                            log=args.log, log_dir=args.log_dir)
 
         if args.phase == 'inference_on_frames' or args.phase == 'test_on_frames':
             print("Inference on frames sequence.")
