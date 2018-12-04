@@ -120,8 +120,8 @@ parser.add_argument('--ckpt_nmbr',
 
 
 # ========================= RESAMPLING PARAMETERS ========================= #
-parser.add_argument('--reencode',
-                    dest='reencode',
+parser.add_argument('--reencodes',
+                    dest='reencodes',
                     type=int,
                     default=1,
                     help='Enable reencoding of images for n times or until fixed point is reached')
@@ -149,8 +149,8 @@ parser.add_argument('--log',
                     help='Enable logging of embeddings')
 parser.add_argument('--log_dir',
                     dest='log_dir',
-                    type=parse_list,
-                    default=['./data/log/'],
+                    type=str,
+                    default='./data/log/',
                     help='set directory where logs shall be placed')
 
 args = parser.parse_args()
@@ -168,9 +168,9 @@ def main(_):
         if args.phase == 'inference' or args.phase == 'test':
             print("Inference.")
             model.inference(args, args.inference_images_dir, resize_to_original=args.resize_to_original,
-                            to_save_dir=args.save_dir, ckpt_nmbr=args.ckpt_nmbr, reencode=args.reencode,
+                            to_save_dir=args.save_dir, ckpt_nmbr=args.ckpt_nmbr, reencodes=args.reencodes,
                             reencode_steps=args.reencode_steps, embeddings=args.embeddings,
-                            log=args.log, log_dir=args.log_dir)
+                            log=args.log, to_log_dir=args.log_dir)
 
         if args.phase == 'inference_on_frames' or args.phase == 'test_on_frames':
             print("Inference on frames sequence.")

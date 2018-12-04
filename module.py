@@ -24,19 +24,19 @@ def encoder(image, options, reuse=True, name="encoder"):
         c0 = tf.pad(image, [[0, 0], [15, 15], [15, 15], [0, 0]], "REFLECT")
         c1 = tf.nn.relu(instance_norm(input=conv2d(c0, options.gf_dim, 3, 1, padding='VALID', name='g_e1_c'),
                                       is_training=options.is_training,
-                                      name='g_e1_bn'))
+                                      name='g_e1_bn'), name='g_e1_r')
         c2 = tf.nn.relu(instance_norm(input=conv2d(c1, options.gf_dim, 3, 2, padding='VALID', name='g_e2_c'),
                                       is_training=options.is_training,
-                                      name='g_e2_bn'))
+                                      name='g_e2_bn'), name='g_e2_r')
         c3 = tf.nn.relu(instance_norm(conv2d(c2, options.gf_dim * 2, 3, 2, padding='VALID', name='g_e3_c'),
                                       is_training=options.is_training,
-                                      name='g_e3_bn'))
+                                      name='g_e3_bn'), name='g_e3_r')
         c4 = tf.nn.relu(instance_norm(conv2d(c3, options.gf_dim * 4, 3, 2, padding='VALID', name='g_e4_c'),
                                       is_training=options.is_training,
-                                      name='g_e4_bn'))
+                                      name='g_e4_bn'), name='g_e4_r')
         c5 = tf.nn.relu(instance_norm(conv2d(c4, options.gf_dim * 8, 3, 2, padding='VALID', name='g_e5_c'),
                                       is_training=options.is_training,
-                                      name='g_e5_bn'))
+                                      name='g_e5_bn'), name='g_e5_r')
         return c5
 
 
@@ -67,7 +67,7 @@ def decoder(features, options, reuse=True, name="decoder"):
 
         # Now stack 9 residual blocks
         num_kernels = features.get_shape().as_list()[-1]
-        print(features.get_shape())
+        print("shape of features: {0}".format(features.get_shape()))
         r1 = residule_block(features, num_kernels, name='g_r1')
         r2 = residule_block(r1, num_kernels, name='g_r2')
         r3 = residule_block(r2, num_kernels, name='g_r3')

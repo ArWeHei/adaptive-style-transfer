@@ -15,6 +15,7 @@ from utils import *
 import prepare_dataset
 import img_augm
 
+from tensorflow.contrib.tensorboard.plugins import projector
 
 class Artgan(object):
     def __init__(self, sess, args):
@@ -451,14 +452,14 @@ class Artgan(object):
         print("Inference is finished.")
 
     def inference(self, args, path_to_folder, to_save_dir=None, to_int_dir=None, resize_to_original=True,
-                  ckpt_nmbr=None, reencode=None, reencode_steps=1, embeddings=False, log=False, logs_dir=self.logs_dir):
+                  ckpt_nmbr=None, reencodes=1, reencode_steps=1, embeddings=False, log=False, to_log_dir=None):
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
-        if reencode==None:
+        if reencodes==1:
             print("Start inference.")
         else:
-            print("Start inference with %i reencodings." % reencode)
+            print("Start inference with %i reencodings." % reencodes)
 
         if self.load(self.checkpoint_dir, ckpt_nmbr):
             print(" [*] Load SUCCESS")
@@ -476,17 +477,39 @@ class Artgan(object):
         if to_int_dir is None:
             to_int_dir = os.path.join(to_save_dir,
                                        'intermediate')
+        # Create folder to store intermediate steps.
+        if to_log_dir is None and log is True:
+            to_log_dir = os.path.join(to_save_dir,
+                                       'logs')
 
         if not os.path.exists(to_save_dir):
             os.makedirs(to_save_dir)
         if not os.path.exists(to_int_dir):
             os.makedirs(to_int_dir)
+        if not os.path.exists(to_log_dir):
+            os.makedirs(to_log_dir)
+        
 
         names = []
         for d in path_to_folder:
             names += glob(os.path.join(d, '*'))
         names = [x for x in names if os.path.basename(x)[0] != '.']
         names.sort()
+
+        #this is the stuff which is needed for logging the embeddings for tensorboard
+        batch_size = len(names)
+
+        test_img = scipy.misc.imread(names[0], mode='RGB')
+        # Resize the smallest side of the image to the self.image_size
+        test_img_shape = test_img.shape[:2]
+        alpha = float(self.image_size) / float(min(test_img_shape))
+        test_img = scipy.misc.imresize(test_img, size=alpha)
+        test_img_shape = test_img.shape[:2]
+        print("scaled image size is {0}".format(test_img_shape))
+        embedding_size = int(np.prod(get_embedding_size(test_img_shape)))
+        print("embedding size is {0}".format(embedding_size))
+        embeddings_log = np.zeros((reencodes*batch_size, embedding_size))
+
         for img_idx, img_path in enumerate(tqdm(names, desc='images')):
             img = scipy.misc.imread(img_path, mode='RGB')
             img_shape = img.shape[:2]
@@ -498,13 +521,14 @@ class Artgan(object):
 
             ## This is where the magic happens
             norm_img = normalize_arr_of_imgs(img)
-            for i in tqdm(range(reencode), desc='reencoding'):
-                if embeddings: #if emebddigns should be saved split the session into two, or give two outputs
-                    #do NOT encode the image a 2nd time since this implies a time penalty.
+            for i in tqdm(range(reencodes), desc='reencoding'):
+                if embeddings or log: #if embeddings or logs should be saved split the session into two, or give two outputs
                     features = self.sess.run(
                             self.input_photo_features,
                             feed_dict={self.input_photo: norm_img,
                         })
+                    #print("ffeature shape: {0}".format(features.shape))
+                    embeddings_log[img_idx*reencodes + i] = features.flatten()
                     norm_img = self.sess.run(
                         self.output_photo_from_features,
                         feed_dict={
@@ -546,6 +570,51 @@ class Artgan(object):
                 np.save(os.path.join(to_save_dir, img_name[:-4] + ("_features.npy")), features, allow_pickle=False)
             else:
                 pass
+
+        ## SET everything up such that the embeddings can be saved
+        #this means embeddings = values of MNIST
+        #embedding_var = tf.Variable(embeddings_log, name="embeddings")
+        #summary_writer = tf.summary.FileWriter(to_log_dir)
+        
+        #This is used for writing a graph to the summary
+        for i in range(100):
+            if not os.path.exists(os.path.join(to_log_dir,'run{0}'.format(i))):
+                os.mkdir(os.path.join(to_log_dir,'run{0}'.format(i)))
+
+                summ_writer = tf.summary.FileWriter(os.path.join(to_log_dir,'run{0}'.format(i)), self.sess.graph)
+                break
+            else:
+                pass
+
+        self.sess.run(tf.global_variables_initializer())
+
+        #which variable do I want to project?
+        #config = projector.ProjectorConfig()
+        #embedding = config.embeddings.add()
+        #embedding.tensor_name = embedding_var.name
+
+        # Specify where you find the metadata
+        ##needed later
+        #embedding.metadata_path = short_path_for_mnist_metadata #'metadata.tsv'
+
+        # Specify where you find the sprite (we will create this later)
+        ##needed later
+        #embedding.sprite.image_path = short_path_for_mnist_sprites #'mnistdigits.png'
+        #embedding.sprite.single_image_dim.extend([28,28])
+
+        # Say that you want to visualise the embeddings
+        #projector.visualize_embeddings(summary_writer, config)
+        
+        #load variable from graph and save session and varaibles in logging directory
+        # there is already a session that belongs to the class thus this is not needed
+        #sess = tf.InteractiveSession()
+        #sess.run(tf.global_variables_initializer())
+
+        #use the saver to save the state of the network after each samplestep
+        #there is already a saver defined as well, thus we use the long saver since this one keeps all data
+        #saver = tf.train.Saver() # use self.saver_long
+
+        #self.saver_long.save(self.sess, os.path.join(to_log_dir, "model.ckpt"), 1)
 
         print("Inference is finished.")
 

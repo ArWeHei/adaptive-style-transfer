@@ -56,3 +56,22 @@ def denormalize_arr_of_imgs(arr):
     Returns:
     """
     return (arr + 1.) * 127.5
+
+def get_conv_layer_shape(input_shape, field_size, padding, stride):
+    return np.trunc((input_shape - field_size + 2*padding) / stride + 1)
+
+def get_embedding_size(input_shape):
+    field_size = np.array([3, 3])
+    initial_padding = np.array([15, 15])
+
+    first_conv = get_conv_layer_shape(input_shape, field_size, initial_padding, 1)
+    #print("1st conv: {0}".format(first_conv))
+    second_conv = get_conv_layer_shape(first_conv, field_size, 0, 2)
+    #print("2nd conv: {0}".format(second_conv))
+    third_conv = get_conv_layer_shape(second_conv, field_size, 0, 2)
+    #print("3rd conv: {0}".format(third_conv))
+    fourth_conv = get_conv_layer_shape(third_conv, field_size, 0, 2)
+    #print("4th conv: {0}".format(fourth_conv))
+    final_conv = get_conv_layer_shape(fourth_conv, field_size, 0, 2)
+    return np.append(final_conv, 256)
+
