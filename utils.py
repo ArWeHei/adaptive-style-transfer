@@ -73,5 +73,26 @@ def get_embedding_size(input_shape):
     fourth_conv = get_conv_layer_shape(third_conv, field_size, 0, 2)
     #print("4th conv: {0}".format(fourth_conv))
     final_conv = get_conv_layer_shape(fourth_conv, field_size, 0, 2)
-    return np.append(final_conv, 256)
+    return np.append(final_conv, 256).astype(int)
 
+def create_sprite_image(images):
+    """Returns a sprite image consisting of images passed as argument. Images should be count x width x height"""
+    if isinstance(images, list):
+        images = np.array(images)
+    img_h = images.shape[1]
+    img_w = images.shape[2]
+    n_plots_per_dim = int(np.ceil(np.sqrt(images.shape[0])))
+    
+    
+    spriteimage = np.ones((img_h * n_plots_per_dim, img_w * n_plots_per_dim, 3))
+    
+    for i in range(n_plots_per_dim):
+        for j in range(n_plots_per_dim):
+            curr_no = i * n_plots_per_dim + j
+            if curr_no < images.shape[0]:
+                this_img = images[curr_no]
+                spriteimage[i * img_h:(i + 1) * img_h,
+                  j * img_w:(j + 1) * img_w] = this_img
+
+    return spriteimage
+    

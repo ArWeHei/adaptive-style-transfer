@@ -16,6 +16,13 @@ import prepare_dataset
 import img_augm
 
 from tensorflow.contrib.tensorboard.plugins import projector
+import matplotlib
+
+import platform
+print('#####This system runs: {0}#####'.format(platform.system_alias(platform.system(), platform.release(), platform.version())))
+#if platform.system() == 'Darwin': #take care for macOS in virtualenv
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 class Artgan(object):
     def __init__(self, sess, args):
@@ -452,7 +459,8 @@ class Artgan(object):
         print("Inference is finished.")
 
     def inference(self, args, path_to_folder, to_save_dir=None, to_int_dir=None, resize_to_original=True,
-                  ckpt_nmbr=None, reencodes=1, reencode_steps=1, embeddings=False, log=False, to_log_dir=None):
+                  ckpt_nmbr=None, reencodes=1, reencode_steps=1, embeddings=False, log=False, to_log_dir=None, thumb_size=[30,30]):
+
 
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
@@ -491,37 +499,96 @@ class Artgan(object):
         
 
         names = []
+
+
+        path_to_folder = np.array(path_to_folder).flatten()
+        print('path:{0}'.format(path_to_folder))
         for d in path_to_folder:
-            names += glob(os.path.join(d, '*'))
+            if os.path.basename(d) == '':
+                names += glob(os.path.join(d, '*.*')) #the dot should single out directories
+            else:
+                names += glob(d)
         names = [x for x in names if os.path.basename(x)[0] != '.']
         names.sort()
 
-        #this is the stuff which is needed for logging the embeddings for tensorboard
+        #this is the stuff which is needed for logging the embeddings for tensorboard, but not sure if needed
         batch_size = len(names)
 
-        test_img = scipy.misc.imread(names[0], mode='RGB')
-        # Resize the smallest side of the image to the self.image_size
-        test_img_shape = test_img.shape[:2]
-        alpha = float(self.image_size) / float(min(test_img_shape))
-        test_img = scipy.misc.imresize(test_img, size=alpha)
-        test_img_shape = test_img.shape[:2]
-        print("scaled image size is {0}".format(test_img_shape))
-        embedding_size = int(np.prod(get_embedding_size(test_img_shape)))
-        print("embedding size is {0}".format(embedding_size))
-        embeddings_log = np.zeros((reencodes*batch_size, embedding_size))
+        if embeddings or log:
+
+            #if embeddings or logs are needed all pictures need to have the same shape, thus scale all given
+            #pictures accordingsly to the first one (use as blueprint)
+            bp_img = scipy.misc.imread(names[0], mode='RGB')
+            # Resize the smallest side of the image to the self.image_size
+            bp_img_shape = bp_img.shape[:2]
+            alpha = float(self.image_size) / float(min(bp_img_shape))
+            bp_img = scipy.misc.imresize(bp_img, size=alpha)
+            bp_img_shape = bp_img.shape[:2]
+            print("blueprint image shape is {0}".format(bp_img_shape))
+            embedding_shape = get_embedding_size(bp_img_shape)
+            embedding_size = int(np.prod(embedding_shape))
+            print("embedding shape is {0}".format(embedding_shape))
+            print("embedding size is {0}".format(embedding_size))
+            embeddings_log = np.zeros((reencodes*batch_size, embedding_size))
+
+
+        print("current working dir: {0}".format(os.getcwd()))
+
+        #This is used for writing a graph to the summary and saves multiple runs
+        for i in range(100):
+            curr_log_dir = os.path.join(to_log_dir,'run{0}'.format(i))
+            if not os.path.exists(curr_log_dir):
+                os.mkdir(curr_log_dir)
+
+                summ_writer = tf.summary.FileWriter(curr_log_dir, self.sess.graph)
+                break
+            else:
+                pass
+
+        if log:
+            metadata_path =  os.path.join(os.getcwd(),curr_log_dir,'metadata.tsv')
+            sprite_path =  os.path.join(os.getcwd(),curr_log_dir,'sprites.png')
+
+            tf_test_val = tf.placeholder(tf.float32, shape=None, name='test_val')
+            test_summary = tf.summary.scalar('test', tf_test_val)
+
+            tf_features = tf.placeholder(tf.float32, shape=[1, None, None, 256], name='features')
+            tf_old_features = tf.placeholder(tf.float32, shape=[1, None, None, 256], name='old_features')
+            tf_norm = tf.sqrt(tf.reduce_mean(tf_features**2))
+            tf_rel_dist = tf.sqrt(tf.reduce_mean((tf_features-tf_old_features)**2))
+            old_features = np.zeros([1, embedding_shape[0], embedding_shape[1], 256])
+            norm_summary = tf.summary.scalar('norm', tf_norm)
+            reldist_summary = tf.summary.scalar('rel_dist', tf_rel_dist)
+
+            normdist_summaries = tf.summary.merge([norm_summary, reldist_summary])
+
+            labels = []
+
+            img_list = []
+        else:
+            pass
 
         for img_idx, img_path in enumerate(tqdm(names, desc='images')):
             img = scipy.misc.imread(img_path, mode='RGB')
-            img_shape = img.shape[:2]
 
             # Resize the smallest side of the image to the self.image_size
-            alpha = float(self.image_size) / float(min(img_shape))
-            img = scipy.misc.imresize(img, size=alpha)
+            img_shape = img.shape[:2]
+
+            if embeddings or log:
+                img = scipy.misc.imresize(img, size=bp_img_shape)
+            else:
+                alpha = float(self.image_size) / float(min(img_shape))
+                img = scipy.misc.imresize(img, size=alpha)
+            
             img = np.expand_dims(img, axis=0)
+
+            img_name = os.path.basename(img_path)
+            img_label, _ = os.path.splitext(img_name)
 
             ## This is where the magic happens
             norm_img = normalize_arr_of_imgs(img)
             for i in tqdm(range(reencodes), desc='reencoding'):
+
                 if embeddings or log: #if embeddings or logs should be saved split the session into two, or give two outputs
                     features = self.sess.run(
                             self.input_photo_features,
@@ -540,7 +607,6 @@ class Artgan(object):
                         feed_dict={
                             self.input_photo: norm_img,
                         })
-                #img_old = copy.copy(img)
                 if reencode_steps != 0:
                     if i % reencode_steps == 0:
                         intermediate = denormalize_arr_of_imgs(norm_img[0])
@@ -548,14 +614,31 @@ class Artgan(object):
                             intermediate = scipy.misc.imresize(intermediate, size=img_shape)
                         else:
                             pass
-                        img_name = os.path.basename(img_path)
-                        scipy.misc.imsave(os.path.join(to_int_dir, img_name[:-4] + ("_intermediate_s=%i.jpg" % (i + 1))), intermediate)
+                        scipy.misc.imsave(os.path.join(to_int_dir, img_label + ("_intermediate_s=%i.jpg" % (i + 1))), intermediate)
                         if embeddings:
-                            np.save(os.path.join(to_int_dir, img_name[:-4] + ("_features_s=%i.npy" % (i + 1))), features, allow_pickle=False)
+                            np.save(os.path.join(to_int_dir, img_label + ("_features_s=%i.npy" % (i + 1))), features, allow_pickle=False)
                         else:
                             pass
                     else:
                         pass
+                else:
+                    pass
+
+                # Resize the smallest side of the image to 30 px for sprite images
+                if log:
+                    img_thumb = scipy.misc.imresize(denormalize_arr_of_imgs(norm_img[0]), size=thumb_size)
+                    img_list.append(img_thumb)
+                else:
+                    pass
+
+                if log:
+                    curr_it = img_idx*reencodes + i
+                    test_summ, normdist_summ = self.sess.run([test_summary, normdist_summaries], feed_dict={tf_test_val:curr_it, tf_features:features, tf_old_features:old_features})
+                    summ_writer.add_summary(test_summ, curr_it)
+                    summ_writer.add_summary(normdist_summ, curr_it)
+                    old_features = features
+
+                    labels.append(img_label)
                 else:
                     pass
 
@@ -564,57 +647,67 @@ class Artgan(object):
                 img = scipy.misc.imresize(img, size=img_shape)
             else:
                 pass
-            img_name = os.path.basename(img_path)
-            scipy.misc.imsave(os.path.join(to_save_dir, img_name[:-4] + "_stylized.jpg"), img)
+            scipy.misc.imsave(os.path.join(to_save_dir, img_label + "_stylized.jpg"), img)
             if embeddings:
-                np.save(os.path.join(to_save_dir, img_name[:-4] + ("_features.npy")), features, allow_pickle=False)
+                np.save(os.path.join(to_log_dir, img_label + ("_features.npy")), features, allow_pickle=False)
             else:
                 pass
+        else:
+            pass
 
-        ## SET everything up such that the embeddings can be saved
-        #this means embeddings = values of MNIST
-        #embedding_var = tf.Variable(embeddings_log, name="embeddings")
-        #summary_writer = tf.summary.FileWriter(to_log_dir)
+        if log:
+            print('Creating logs for tensorboard...')
+            ## SET everything up such that the embeddings can be saved
+            #this means embeddings = values of MNIST
+            #embedding_var = tf.Variable(embeddings_log, name="embeddings_log")
+            #this variable can easily become larger than 2GB thus we need another way of initializing it:
+            
+            embedding_var_init = tf.placeholder(tf.float32, shape=np.shape(embeddings_log))
+            embedding_var = tf.Variable(embedding_var_init)
+
+            #embedding_var = tf.Variable(batch_xs, name="embeddings_log")
+            #summary_writer = tf.summary.FileWriter(to_log_dir)
+            #initialize embedding`-var
+            #self.sess.run(embedding_var.initializer) #this is changed due to the size limit problem
+            self.sess.run(embedding_var.initializer, feed_dict={embedding_var_init:embeddings_log})
+            #create projector congif
+            config = projector.ProjectorConfig()
+            #add visualizer for embeddings
+            embedding_conf = config.embeddings.add()
+            # attach the name of the tensor
+            embedding_conf.tensor_name = embedding_var.name
+            # Specify where you find the metadata
+            embedding_conf.metadata_path = metadata_path #os.path.basename(metadata_path) #'metadata.tsv'
+
+            sprite_image = create_sprite_image(img_list)
+            sprite_shape = np.shape(sprite_image)
+
+            plt.imsave(sprite_path,sprite_image.astype(np.uint8))
+            #plt.imshow(sprite_image,cmap='gray')
+
+            # Specify where you find the sprite (we will create this later)
+            ##needed later
+            embedding_conf.sprite.image_path = sprite_path #'sprites.png'
+            embedding_conf.sprite.single_image_dim.extend(thumb_size)
+
+            # give the writer and config to the projector
+            projector.visualize_embeddings(summ_writer, config)
+            #save the model
+            saver_embed = tf.train.Saver([embedding_var])
+            saver_embed.save(self.sess, os.path.join(curr_log_dir, "test.ckpt"), 1)
+
+            #self.saver_long.save(self.sess, os.path.join(curr_log_dir, "model.ckpt"), 1)
+
+            #save meta_data
+            with open(metadata_path,'w') as f:
+                f.write("Index\tLabel\n")
+                for index,label in enumerate(labels):
+                    #f.write("{0}\t{1}\n".format(index,label))
+                    f.write("{0}\t{1}\n".format(index,label))
+
+        else:
+            pass
         
-        #This is used for writing a graph to the summary
-        for i in range(100):
-            if not os.path.exists(os.path.join(to_log_dir,'run{0}'.format(i))):
-                os.mkdir(os.path.join(to_log_dir,'run{0}'.format(i)))
-
-                summ_writer = tf.summary.FileWriter(os.path.join(to_log_dir,'run{0}'.format(i)), self.sess.graph)
-                break
-            else:
-                pass
-
-        self.sess.run(tf.global_variables_initializer())
-
-        #which variable do I want to project?
-        #config = projector.ProjectorConfig()
-        #embedding = config.embeddings.add()
-        #embedding.tensor_name = embedding_var.name
-
-        # Specify where you find the metadata
-        ##needed later
-        #embedding.metadata_path = short_path_for_mnist_metadata #'metadata.tsv'
-
-        # Specify where you find the sprite (we will create this later)
-        ##needed later
-        #embedding.sprite.image_path = short_path_for_mnist_sprites #'mnistdigits.png'
-        #embedding.sprite.single_image_dim.extend([28,28])
-
-        # Say that you want to visualise the embeddings
-        #projector.visualize_embeddings(summary_writer, config)
-        
-        #load variable from graph and save session and varaibles in logging directory
-        # there is already a session that belongs to the class thus this is not needed
-        #sess = tf.InteractiveSession()
-        #sess.run(tf.global_variables_initializer())
-
-        #use the saver to save the state of the network after each samplestep
-        #there is already a saver defined as well, thus we use the long saver since this one keeps all data
-        #saver = tf.train.Saver() # use self.saver_long
-
-        #self.saver_long.save(self.sess, os.path.join(to_log_dir, "model.ckpt"), 1)
 
         print("Inference is finished.")
 

@@ -104,6 +104,7 @@ parser.add_argument('--dsr',
 parser.add_argument('--ii_dir',
                     dest='inference_images_dir',
                     type=parse_list,
+                    nargs='+',
                     default=['./data/sample_photographs/'],
                     help='Directory with images we want to process.')
 parser.add_argument('--save_dir',
@@ -132,20 +133,17 @@ parser.add_argument('--reencode_steps',
                     help='Enable saving of every stylized picture in reencoding')
 parser.add_argument('--resize_to_original',
                     dest='resize_to_original',
-                    type=bool,
-                    default=False,
+                    action='store_true',
                     help='Enable to resize the result to its original resolution')
 parser.add_argument('--embeddings',
                     dest='embeddings',
-                    type=bool,
-                    default=False,
+                    action='store_true',
                     help='Save embeddings for tsne respresentation and output them into a separate file')
 
 # ========================= LOGGING PARAMETERS ========================= #
 parser.add_argument('--log',
                     dest='log',
-                    type=bool,
-                    default=False,
+                    action='store_true',
                     help='Enable logging of embeddings')
 parser.add_argument('--log_dir',
                     dest='log_dir',
