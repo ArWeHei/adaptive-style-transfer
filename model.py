@@ -302,7 +302,7 @@ class Artgan(object):
                     loss=self.options.discr_loss_weight * self.patch_discr_loss,
                     var_list=[self.patch_discr_vars])
                 self.decoder_optim_step = tf.train.AdamOptimizer(self.lr).minimize(
-                    loss=self.options.discr_loss_weight * self.patch_decoder_loss, #+
+                    loss=self.options.discr_loss_weight * self.decoder_loss, #+
                          #self.options.transformer_loss_weight * self.img_loss +
                          #self.options.feature_loss_weight * self.feature_loss,
                     var_list=[self.decoder_vars])
@@ -490,7 +490,7 @@ class Artgan(object):
                         self.lr: self.options.lr
                     })
 
-                patch_discr_success = patch_discr_success * (1. - alpha) + alpha * discr_acc_
+                patch_discr_success = patch_discr_success * (1. - alpha) + alpha * patch_discr_acc_
 
             else:
                 # Train discriminator.
