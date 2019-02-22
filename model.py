@@ -254,11 +254,19 @@ class Artgan(object):
 
             # Decoder
             # similar to generator
-            self.output_photo_patch_decoder_loss = {key: self.loss(pred, tf.ones_like(pred)) * scale_weight[key]
+            self.output_photo_decoder_loss = {key: self.loss(pred, tf.ones_like(pred)) * scale_weight[key]
                                             for key, pred in zip(self.output_photo_patch_discr_predictions.keys(),
                                                                  self.output_photo_patch_discr_predictions.values())}
 
-            self.patch_decoder_loss = tf.add_n(list(self.output_photo_patch_decoder_loss.values()))
+            self.decoder_loss = tf.add_n(list(self.output_photo_decoder_loss.values()))
+
+            # Compute decoder accuracies.
+            self.output_photo_decoder_acc = {key: tf.reduce_mean(tf.cast(x=(pred > tf.zeros_like(pred)),
+                                                                       dtype=tf.float32)) * scale_weight[key]
+                                           for key, pred in zip(self.output_photo_patch_discr_predictions.keys(),
+                                                                self.output_photo_patch_discr_predictions.values())}
+
+            self.decoder_acc = tf.add_n(list(self.output_photo_decoder_acc.values())) / float(len(scale_weight.keys()))
 
 
 
@@ -462,6 +470,15 @@ class Artgan(object):
                         self.lr: self.options.lr
                     })
                 discr_success = discr_success * (1. - alpha) + alpha * (1. - gener_acc_)
+                # Train decoder
+                _, summary_all, decoder_acc_ = self.sess.run(
+                    [self.decoder_optim_step, self.summary_merged_all, self.decoder_acc],
+                    feed_dict={
+                        self.input_painting: normalize_arr_of_imgs(batch_art['image']),
+                        self.input_photo: normalize_arr_of_imgs(batch_content['image']),
+                        self.lr: self.options.lr
+                    })
+                patch_discr_success = patch_discr_success * (1. - alpha) + alpha * (1. - decoder_acc_)
 
             elif patch_discr_success < win_rate:
                 # Train patch_discriminator.
