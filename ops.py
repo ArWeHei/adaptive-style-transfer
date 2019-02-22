@@ -82,3 +82,17 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
         else:
             return tf.matmul(input_, matrix) + bias
 
+def get_patch(image, size=200):
+    #return square patch of size from image
+    #similar to img_aug.py
+    # If the input image was too small to comprise patch of size 'size',
+    # resize image to desired size.
+    if image.shape[0] < size or image.shape[1] < size:
+        image = scipy.misc.imresize(arr=image, size=(size, size))
+    rows, cols, chs = image.shape
+    x = int(np.random.uniform(low=0, high=max(0, rows - size)))
+    y = int(np.random.uniform(low=0, high=max(0, cols - size)))
+
+    image = image[x:x+size, y:y+size, :]
+    return patch
+    

@@ -139,6 +139,16 @@ class Artgan(object):
             self.output_photo_discr_predictions = discriminator(image=self.output_photo,
                                                                 options=self.options,
                                                                 reuse=True)
+            #patch discriminator
+            self.input_painting_patch_discr_predictions = discriminator(image=self.input_painting,
+                                                                  options=self.options,
+                                                                  reuse=False)
+            self.input_photo_patch_discr_predictions = discriminator(image=self.input_photo,
+                                                               options=self.options,
+                                                               reuse=True)
+            self.output_photo_patch_discr_predictions = discriminator(image=self.output_photo,
+                                                                options=self.options,
+                                                                reuse=True)
 
             # ===================== Final losses that we optimize. ===================== #
 
@@ -162,6 +172,22 @@ class Artgan(object):
             self.discr_loss = tf.add_n(list(self.input_painting_discr_loss.values())) + \
                               tf.add_n(list(self.input_photo_discr_loss.values())) + \
                               tf.add_n(list(self.output_photo_discr_loss.values()))
+
+
+            #patch losses
+            self.input_painting_patch_discr_loss = {key: self.loss(pred, tf.ones_like(pred)) * scale_weight[key]
+                                              for key, pred in zip(self.input_painting_patch_discr_predictions.keys(),
+                                                                   self.input_painting_patch_discr_predictions.values())}
+            self.input_photo_patch_discr_loss = {key: self.loss(pred, tf.zeros_like(pred)) * scale_weight[key]
+                                           for key, pred in zip(self.input_photo_patch_discr_predictions.keys(),
+                                                                self.input_photo_patch_discr_predictions.values())}
+            self.output_photo_patch_discr_loss = {key: self.loss(pred, tf.zeros_like(pred)) * scale_weight[key]
+                                            for key, pred in zip(self.output_photo_patch_discr_predictions.keys(),
+                                                                 self.output_photo_patch_discr_predictions.values())}
+
+            self.patch_discr_loss = tf.add_n(list(self.input_painting_patch_discr_loss.values())) + \
+                              tf.add_n(list(self.input_photo_patch_discr_loss.values())) + \
+                              tf.add_n(list(self.output_photo_patch_discr_loss.values()))
 
             # Compute discriminator accuracies.
             self.input_painting_discr_acc = {key: tf.reduce_mean(tf.cast(x=(pred > tf.zeros_like(pred)),
@@ -197,6 +223,15 @@ class Artgan(object):
 
             self.gener_acc = tf.add_n(list(self.output_photo_gener_acc.values())) / float(len(scale_weight.keys()))
 
+            # Decoder
+            # similar to generator
+            self.output_photo_patch_decoder_loss = {key: self.loss(pred, tf.ones_like(pred)) * scale_weight[key]
+                                            for key, pred in zip(self.output_photo_patch_discr_predictions.keys(),
+                                                                 self.output_photo_patch_discr_predictions.values())}
+
+            self.patch_decoder_loss = tf.add_n(list(self.output_photo_patch_decoder_loss.values()))
+
+
 
             # Image loss.
             self.img_loss_photo = mse_criterion(transformer_block(self.output_photo),
@@ -210,6 +245,7 @@ class Artgan(object):
             # ================== Define optimization steps. =============== #
             t_vars = tf.trainable_variables()
             self.discr_vars = [var for var in t_vars if 'discriminator' in var.name]
+            self.patch_discr_vars = [var for var in t_vars if 'patch_discriminator' in var.name]
             self.encoder_vars = [var for var in t_vars if 'encoder' in var.name]
             self.decoder_vars = [var for var in t_vars if 'decoder' in var.name]
 
@@ -225,10 +261,13 @@ class Artgan(object):
                          self.options.transformer_loss_weight * self.img_loss +
                          self.options.feature_loss_weight * self.feature_loss,
                     var_list=[self.encoder_vars + self.decoder_vars])
-                self.patch_optim_step = tf.train.AdamOptimizer(self.lr).minimize(
-                    loss=self.options.discr_loss_weight * self.gener_loss +
-                         self.options.transformer_loss_weight * self.img_loss +
-                         self.options.feature_loss_weight * self.feature_loss,
+                self.patch_d_optim_step = tf.train.AdamOptimizer(self.lr).minimize(
+                    loss=self.options.discr_loss_weight * self.patch_discr_loss,
+                    var_list=[self.patch_discr_vars])
+                self.decoder_optim_step = tf.train.AdamOptimizer(self.lr).minimize(
+                    loss=self.options.discr_loss_weight * self.patch_decoder_loss, #+
+                         #self.options.transformer_loss_weight * self.img_loss +
+                         #self.options.feature_loss_weight * self.feature_loss,
                     var_list=[self.decoder_vars])
 
 
