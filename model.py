@@ -451,10 +451,12 @@ class Artgan(object):
         patch_discr_success = discr_success
         alpha = 0.05
 
-        for step in tqdm(range(self.initial_step, self.options.total_steps+1),
+        pbar = tqdm(range(self.initial_step, self.options.total_steps+1),
                          initial=self.initial_step,
-                         total=self.options.total_steps):
+                         total=self.options.total_steps)
+        for step in pbar:
             # Get batch from the queue with batches q, if the last is non-empty.
+            pbar.set_postfix(d_acc=discr_success, p_acc=patch_discr_success)
             while q_art.empty() or q_content.empty():
                 pass
             batch_art = q_art.get()
