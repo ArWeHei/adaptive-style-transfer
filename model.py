@@ -135,6 +135,8 @@ class Artgan(object):
                                                  options=self.options,
                                                  reuse=True)
 
+            self.paint_patch = get_patch(self.input_painting)
+            self.photo_patch = get_patch(self.input_photo)
             self.gener_patch = get_patch(self.output_photo)
 
             # Add discriminators.
@@ -150,10 +152,10 @@ class Artgan(object):
                                                                 options=self.options,
                                                                 reuse=True)
             #patch discriminator
-            self.input_painting_patch_discr_predictions = patch_discriminator(image=self.input_patch,
+            self.input_painting_patch_discr_predictions = patch_discriminator(image=self.paint_patch,
                                                                   options=self.options,
                                                                   reuse=False)
-            self.input_photo_patch_discr_predictions = patch_discriminator(image=self.input_patch,
+            self.input_photo_patch_discr_predictions = patch_discriminator(image=self.photo_patch,
                                                                options=self.options,
                                                                reuse=True)
             self.output_photo_patch_discr_predictions = patch_discriminator(image=self.gener_patch,
@@ -215,6 +217,23 @@ class Artgan(object):
             self.discr_acc = (tf.add_n(list(self.input_painting_discr_acc.values())) + \
                               tf.add_n(list(self.input_photo_discr_acc.values())) + \
                               tf.add_n(list(self.output_photo_discr_acc.values()))) / float(len(scale_weight.keys())*3)
+
+            # Compute patch_discriminator accuracies.
+            self.input_painting_patch_discr_acc = {key: tf.reduce_mean(tf.cast(x=(pred > tf.zeros_like(pred)),
+                                                                         dtype=tf.float32)) * scale_weight[key]
+                                             for key, pred in zip(self.input_painting_patch_discr_predictions.keys(),
+                                                                  self.input_painting_patch_discr_predictions.values())}
+            self.input_photo_patch_discr_acc = {key: tf.reduce_mean(tf.cast(x=(pred < tf.zeros_like(pred)),
+                                                                      dtype=tf.float32)) * scale_weight[key]
+                                          for key, pred in zip(self.input_photo_patch_discr_predictions.keys(),
+                                                               self.input_photo_patch_discr_predictions.values())}
+            self.output_photo_patch_discr_acc = {key: tf.reduce_mean(tf.cast(x=(pred < tf.zeros_like(pred)),
+                                                                       dtype=tf.float32)) * scale_weight[key]
+                                           for key, pred in zip(self.output_photo_patch_discr_predictions.keys(),
+                                                                self.output_photo_patch_discr_predictions.values())}
+            self.patch_discr_acc = (tf.add_n(list(self.input_painting_patch_discr_acc.values())) + \
+                              tf.add_n(list(self.input_photo_patch_discr_acc.values())) + \
+                              tf.add_n(list(self.output_photo_patch_discr_acc.values()))) / float(len(scale_weight.keys())*3)
 
 
             # Generator.
@@ -293,6 +312,16 @@ class Artgan(object):
             s_d = tf.summary.scalar("discriminator/discr_loss", self.discr_loss)
             self.summary_discriminator_loss = tf.summary.merge(s_d1+s_d2+s_d3+[s_d])
 
+            # Patch discriminator loss summary.
+            s_p1 = [tf.summary.scalar("patch_discriminator/input_painting_patch_discr_loss/"+key, val)
+                    for key, val in zip(self.input_painting_patch_discr_loss.keys(), self.input_painting_patch_discr_loss.values())]
+            s_p2 = [tf.summary.scalar("patch_discriminator/input_photo_patch_discr_loss/"+key, val)
+                    for key, val in zip(self.input_photo_patch_discr_loss.keys(), self.input_photo_patch_discr_loss.values())]
+            s_p3 = [tf.summary.scalar("patch_discriminator/output_photo_patch_discr_loss/" + key, val)
+                    for key, val in zip(self.output_photo_patch_discr_loss.keys(), self.output_photo_patch_discr_loss.values())]
+            s_p = tf.summary.scalar("patch_discriminator/patch_discr_loss", self.patch_discr_loss)
+            self.summary_patch_discriminator_loss = tf.summary.merge(s_p1+s_p2+s_p3+[s_p])
+
             # Discriminator acc summary.
             s_d1_acc = [tf.summary.scalar("discriminator/input_painting_discr_acc/"+key, val)
                     for key, val in zip(self.input_painting_discr_acc.keys(), self.input_painting_discr_acc.values())]
@@ -303,6 +332,17 @@ class Artgan(object):
             s_d_acc = tf.summary.scalar("discriminator/discr_acc", self.discr_acc)
             s_d_acc_g = tf.summary.scalar("discriminator/discr_acc", self.gener_acc)
             self.summary_discriminator_acc = tf.summary.merge(s_d1_acc+s_d2_acc+s_d3_acc+[s_d_acc])
+
+            # Patch discriminator acc summary.
+            s_p1_acc = [tf.summary.scalar("patch_discriminator/input_painting_patch_discr_acc/"+key, val)
+                    for key, val in zip(self.input_painting_patch_discr_acc.keys(), self.input_painting_patch_discr_acc.values())]
+            s_p2_acc = [tf.summary.scalar("patch_discriminator/input_photo_patch_discr_acc/"+key, val)
+                    for key, val in zip(self.input_photo_patch_discr_acc.keys(), self.input_photo_patch_discr_acc.values())]
+            s_p3_acc = [tf.summary.scalar("patch_discriminator/output_photo_patch_discr_acc/" + key, val)
+                    for key, val in zip(self.output_photo_patch_discr_acc.keys(), self.output_photo_patch_discr_acc.values())]
+            s_p_acc = tf.summary.scalar("patch_discriminator/patch_discr_acc", self.patch_discr_acc)
+            s_p_acc_g = tf.summary.scalar("patch_discriminator/patch_discr_acc", self.gener_acc)
+            self.summary_patch_discriminator_acc = tf.summary.merge(s_p1_acc+s_p2_acc+s_p3_acc+[s_p_acc])
 
             # Image loss summary.
             s_i1 = tf.summary.scalar("image_loss/photo", self.img_loss_photo)
@@ -400,6 +440,7 @@ class Artgan(object):
         # Initial discriminator success rate.
         win_rate = args.discr_success_rate
         discr_success = args.discr_success_rate
+        patch_discr_success = discr_success
         alpha = 0.05
 
         for step in tqdm(range(self.initial_step, self.options.total_steps+1),
@@ -411,7 +452,7 @@ class Artgan(object):
             batch_art = q_art.get()
             batch_content = q_content.get()
 
-            if discr_success >= win_rate:
+            if discr_success >= win_rate and patch_discr_success >= win_rate:
                 # Train generator
                 _, summary_all, gener_acc_ = self.sess.run(
                     [self.g_optim_step, self.summary_merged_all, self.gener_acc],
@@ -421,6 +462,19 @@ class Artgan(object):
                         self.lr: self.options.lr
                     })
                 discr_success = discr_success * (1. - alpha) + alpha * (1. - gener_acc_)
+
+            elif patch_discr_success < win_rate:
+                # Train patch_discriminator.
+                _, summary_all, patch_discr_acc_ = self.sess.run(
+                    [self.patch_d_optim_step, self.summary_merged_all, self.patch_discr_acc],
+                    feed_dict={
+                        self.input_painting: normalize_arr_of_imgs(batch_art['image']),
+                        self.input_photo: normalize_arr_of_imgs(batch_content['image']),
+                        self.lr: self.options.lr
+                    })
+
+                patch_discr_success = patch_discr_success * (1. - alpha) + alpha * discr_acc_
+
             else:
                 # Train discriminator.
                 _, summary_all, discr_acc_ = self.sess.run(
