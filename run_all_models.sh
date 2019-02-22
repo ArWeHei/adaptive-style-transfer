@@ -5,7 +5,11 @@ run_models(){
 			MODEL=${d%/}
 			MODEL=${MODEL##*/}
 			echo ${MODEL}
-			CUDA_VISIBLE_DEVICES=9 python3 main.py --model_name=${MODEL} --phase=inference --image_size=2500 --ii_dir ../house2/ --save_dir ../house_results/${MODEL} --reencodes=1 --reencode_steps=1
+			CUDA_VISIBLE_DEVICES=0 python3 main.py --model_name=${MODEL} \
+			--phase=inference --ii_dir ../val_large/*0.jpg \
+			--save_dir ../resize_results/${MODEL}_1000_1_w_embeddings \
+			--reencodes=100 --reencode_steps=1 --embeddings \
+			--x_image_size=768x512
 		fi
 	done
 }

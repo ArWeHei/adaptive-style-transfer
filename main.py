@@ -30,6 +30,14 @@ parser.add_argument('--image_size',
                          'For inference phase: each input image will have the smallest side of this size. '
                          'For inference recommended size is 1280.')
 
+parser.add_argument('--x_image_size',
+                    dest='x_image_size',
+                    type=str,
+                    default=None,
+                    help='crop all pictures to exact size,'
+                    's.t. the embeddings have also the same dimensionality,'
+                    'ideally 768x512')
+
 
 # ========================= TRAINING PARAMETERS ========================= #
 parser.add_argument('--ptad',
@@ -151,6 +159,18 @@ parser.add_argument('--log_dir',
                     default='./data/log/',
                     help='set directory where logs shall be placed')
 
+## ========================= PARALLELIZATION ========================= #
+#parser.add_argument('--parallel_gpus',
+#                    dest='parallel_gpus',
+#                    action='store_true',
+#                    help='Enable parellelization among GPUs')
+#
+#parser.add_argument('--gpu_count',
+#                    dest='gpu_count',
+#                    type = int,
+#                    default = 1, #make this 0 or 1
+#                    help='number of available gpus for parallel computing')
+
 args = parser.parse_args()
 
 
@@ -165,10 +185,19 @@ def main(_):
             model.train(args, ckpt_nmbr=args.ckpt_nmbr)
         if args.phase == 'inference' or args.phase == 'test':
             print("Inference.")
-            model.inference(args, args.inference_images_dir, resize_to_original=args.resize_to_original,
-                            to_save_dir=args.save_dir, ckpt_nmbr=args.ckpt_nmbr, reencodes=args.reencodes,
-                            reencode_steps=args.reencode_steps, embeddings=args.embeddings,
-                            log=args.log, to_log_dir=args.log_dir)
+            model.inference(args, args.inference_images_dir,
+                            resize_to_original  =   args.resize_to_original,
+                            to_save_dir         =   args.save_dir,
+                            ckpt_nmbr           =   args.ckpt_nmbr,
+                            reencodes           =   args.reencodes,
+                            reencode_steps      =   args.reencode_steps,
+                            embeddings          =   args.embeddings,
+                            log                 =   args.log,
+                            to_log_dir          =   args.log_dir,
+                            x_image_size        =   args.x_image_size,
+                            #parallel_gpus       =   args.parallel_gpus
+                            #gpu_count           =   args.gpu_count
+                            )
 
         if args.phase == 'inference_on_frames' or args.phase == 'test_on_frames':
             print("Inference on frames sequence.")

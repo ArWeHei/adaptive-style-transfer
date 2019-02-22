@@ -95,4 +95,31 @@ def create_sprite_image(images):
                   j * img_w:(j + 1) * img_w] = this_img
 
     return spriteimage
+
+def center_crop(image, crop_size=(256, 256)):
+    rows, cols, chs = image.shape
+    #return a croped image around the center
+    #since most important information is usually in the center
+    if rows < crop_size[1]:
+        alpha = float(crop_size[1] / rows)
+        #we prefer 1280x768 landscape pictures over portait aspect ratio
+        #rows should actually be called row as it's the coordinates in a row
+        image = scipy.misc.imresize(arr=image, size=alpha)
+        rows, cols, chs = image.shape
+    if cols < crop_size[0]:
+        alpha = float(crop_size[0] / cols)
+        #take the base length as this is usually the longer one
+        #we prefer 1280x768 landscape pictures over portait aspect ratio
+        #rows should actually be called row as it's the coordinates in a row
+        image = scipy.misc.imresize(arr=image, size=alpha)
+        rows, cols, chs = image.shape
+
+    #center coordinates
+    x = int((rows - crop_size[1])/2)
+    y = int((cols - crop_size[0])/2)
+
+    image = image[x:x+crop_size[1], y:y+crop_size[0], :]
+    # If the input image was too small to comprise patch of size crop_size,
+    # resize obtained patch to desired size.
+    return image
     
