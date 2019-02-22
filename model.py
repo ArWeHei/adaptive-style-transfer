@@ -135,6 +135,8 @@ class Artgan(object):
                                                  options=self.options,
                                                  reuse=True)
 
+            self.gener_patch = get_patch(self.output_features)
+
             # Add discriminators.
             # Note that each of the predictions contain multiple predictions
             # at different scale.
@@ -154,7 +156,7 @@ class Artgan(object):
             self.input_photo_patch_discr_predictions = patch_discriminator(image=self.input_patch,
                                                                options=self.options,
                                                                reuse=True)
-            self.output_photo_patch_discr_predictions = patch_discriminator(image=self.output_patch,
+            self.output_photo_patch_discr_predictions = patch_discriminator(image=self.gener_patch,
                                                                 options=self.options,
                                                                 reuse=True)
 
