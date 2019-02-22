@@ -102,6 +102,9 @@ class Artgan(object):
                 self.input_photo = tf.placeholder(dtype=tf.float32,
                                                   shape=[self.batch_size, None, None, 3],
                                                   name='photo')
+                self.input_patch = tf.placeholder(dtype=tf.float32,
+                                                  shape=[self.batch_size, None, None, 3],
+                                                  name='patch')
                 self.lr = tf.placeholder(dtype=tf.float32, shape=(), name='learning_rate')
 
             # ===================== Wire the graph. ========================= #
@@ -122,6 +125,11 @@ class Artgan(object):
                                            options=self.options,
                                            reuse=True)
 
+            # Decode obtained features and convert to patch
+            self.output_patch = get_patch(decoder(features=self.input_photo_features,
+                                                  options=self.options,
+                                                  reuse=False))
+
             # Get features of output images. Need them to compute feature loss.
             self.output_photo_features = encoder(image=self.output_photo,
                                                  options=self.options,
@@ -140,14 +148,13 @@ class Artgan(object):
                                                                 options=self.options,
                                                                 reuse=True)
             #patch discriminator
-
-            self.input_painting_patch_discr_predictions = patch_discriminator(image=self.input_painting,
+            self.input_painting_patch_discr_predictions = patch_discriminator(image=self.input_patch,
                                                                   options=self.options,
                                                                   reuse=False)
-            self.input_photo_patch_discr_predictions = patch_discriminator(image=self.input_photo,
+            self.input_photo_patch_discr_predictions = patch_discriminator(image=self.input_patch,
                                                                options=self.options,
                                                                reuse=True)
-            self.output_photo_patch_discr_predictions = patch_discriminator(image=self.output_photo,
+            self.output_photo_patch_discr_predictions = patch_discriminator(image=self.output_patch,
                                                                 options=self.options,
                                                                 reuse=True)
 
