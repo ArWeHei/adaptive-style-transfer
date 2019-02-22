@@ -225,6 +225,12 @@ class Artgan(object):
                          self.options.transformer_loss_weight * self.img_loss +
                          self.options.feature_loss_weight * self.feature_loss,
                     var_list=[self.encoder_vars + self.decoder_vars])
+                self.patch_optim_step = tf.train.AdamOptimizer(self.lr).minimize(
+                    loss=self.options.discr_loss_weight * self.gener_loss +
+                         self.options.transformer_loss_weight * self.img_loss +
+                         self.options.feature_loss_weight * self.feature_loss,
+                    var_list=[self.decoder_vars])
+
 
             # ============= Write statistics to tensorboard. ================ #
 
