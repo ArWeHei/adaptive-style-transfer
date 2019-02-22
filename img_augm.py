@@ -1,3 +1,20 @@
+# Copyright (C) 2018  Artsiom Sanakoyeu and Dmytro Kotovenko
+#
+# This file is part of Adaptive Style Transfer
+#
+# Adaptive Style Transfer is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Adaptive Style Transfer is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import numpy as np
 import scipy.misc
 import cv2
@@ -15,10 +32,11 @@ class Augmentor():
                  value_augm_shift=0.05, value_augm_scale=0.05,
                  affine_trnsfm_prb=0.5, affine_trnsfm_range=0.05,
                  horizontal_flip_prb=0.5,
-                 vertical_flip_prb=0.5):
+                 vertical_flip_prb=0.5,
+                 no_augmentation=False):
 
         self.crop_size = crop_size
-        
+
         self.scale_augm_prb = scale_augm_prb
         self.scale_augm_range = scale_augm_range
 
@@ -38,9 +56,19 @@ class Augmentor():
         self.horizontal_flip_prb = horizontal_flip_prb
         self.vertical_flip_prb = vertical_flip_prb
 
+        self.no_augmentation = no_augmentation
+
+
     def __call__(self, image, is_inference=False):
         if is_inference:
             return cv2.resize(image, None, fx=self.crop_size[0], fy=self.crop_size[1], interpolation=cv2.INTER_CUBIC)
+        if self.no_augmentation:
+            # Crop out patch of desired size.
+            image = self.crop(image=image,
+                              crop_size=self.crop_size
+                              )
+
+            return image
 
         # If not inference stage apply the pipeline of augmentations.
         if self.scale_augm_prb > np.random.uniform():

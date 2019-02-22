@@ -1,3 +1,20 @@
+# Copyright (C) 2018  Artsiom Sanakoyeu and Dmytro Kotovenko
+#
+# This file is part of Adaptive Style Transfer
+#
+# Adaptive Style Transfer is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Adaptive Style Transfer is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 from __future__ import print_function
 import pandas as pd
 import numpy as np
@@ -43,7 +60,7 @@ class ArtDataset():
                 else:
                     image = scipy.misc.imresize(image, size=[800, 800])
 
-            if augmentor:
+            if True: #augmentor:
                 batch_image.append(augmentor(image).astype(np.float32))
             else:
                 batch_image.append((image).astype(np.float32))
@@ -86,16 +103,22 @@ class PlacesDataset():
          '/b/building_facade', '/c/cemetery']
     categories_names = [x[1:] for x in categories_names]
 
-    def __init__(self, path_to_dataset):
+    def __init__(self, path_to_dataset, use_small_dataset=False):
         self.dataset = []
-        for category_idx, category_name in enumerate(tqdm(self.categories_names)):
-            print(category_name, category_idx)
-            if os.path.exists(os.path.join(path_to_dataset, category_name)):
-                for file_name in tqdm(os.listdir(os.path.join(path_to_dataset, category_name))):
-                    self.dataset.append(os.path.join(path_to_dataset, category_name, file_name))
-            else:
-                print("Category %s can't be found in path %s. Skip it." %
-                      (category_name, os.path.join(path_to_dataset, category_name)))
+        if use_small_dataset:
+            for file_name in tqdm(os.listdir(path_to_dataset)):
+                if file_name[0] != '.':
+                    self.dataset.append(os.path.join(path_to_dataset, file_name))
+
+        else:
+            for category_idx, category_name in enumerate(tqdm(self.categories_names)):
+                print(category_name, category_idx)
+                if os.path.exists(os.path.join(path_to_dataset, category_name)):
+                    for file_name in tqdm(os.listdir(os.path.join(path_to_dataset, category_name))):
+                        self.dataset.append(os.path.join(path_to_dataset, category_name, file_name))
+                else:
+                    print("Category %s can't be found in path %s. Skip it." %
+                          (category_name, os.path.join(path_to_dataset, category_name)))
 
         print("Finished. Constructed Places2 dataset of %d images." % len(self.dataset))
 
@@ -127,12 +150,25 @@ class PlacesDataset():
                 else:
                     image = scipy.misc.imresize(image, size=[800, 800])
 
-            batch_image.append(augmentor(image).astype(np.float32))
+            if augmentor:
+                batch_image.append(augmentor(image).astype(np.float32))
+            else:
+                batch_image.append((image).astype(np.float32))
+            #batch_image.append(augmentor(image).astype(np.float32))
 
         return {"image": np.asarray(batch_image)}
 
     def initialize_batch_worker(self, queue, augmentor, batch_size=1, seed=228):
+        import psutil
         np.random.seed(seed)
+        tqdm.write('process id: {}'.format(os.getpid()))
+        p = psutil.Process(os.getpid())
+        # set to lowest priority
+        niceness = p.nice(0)
+        if niceness == None:
+            niceness = 0
+        p.nice(18-niceness)
+
         while True:
             batch = self.get_batch(augmentor=augmentor, batch_size=batch_size)
             queue.put(batch)

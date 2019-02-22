@@ -1,3 +1,20 @@
+# Copyright (C) 2018  Artsiom Sanakoyeu and Dmytro Kotovenko
+#
+# This file is part of Adaptive Style Transfer
+#
+# Adaptive Style Transfer is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Adaptive Style Transfer is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import argparse
 import tensorflow as tf
 tf.set_random_seed(228)
@@ -77,6 +94,16 @@ parser.add_argument('--ndf',
                     default=64,
                     help='Number of filters in first conv layer of discriminator.')
 
+parser.add_argument('--use_small_dataset',
+                    dest='small_dataset',
+                    action='store_true',
+                    help='use smaller set of images without categories')
+
+parser.add_argument('--no-augmentation',
+                    dest='augmentation',
+                    action='store_false',
+                    help='prohibit image augmentation')
+
 # Weights of different losses.
 parser.add_argument('--dlw',
                     dest='discr_loss_weight',
@@ -123,8 +150,11 @@ args = parser.parse_args()
 
 def main(_):
 
-    tfconfig = tf.ConfigProto(allow_soft_placement=False)
+    tfconfig = tf.ConfigProto(allow_soft_placement=True)
+    #tfconfig.intra_op_parallelism_threads=1
+    #tfconfig.inter_op_parallelism_threads=1
     tfconfig.gpu_options.allow_growth = True
+
     with tf.Session(config=tfconfig) as sess:
         model = Artgan(sess, args)
 
