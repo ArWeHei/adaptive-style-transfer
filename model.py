@@ -140,13 +140,14 @@ class Artgan(object):
                                                                 options=self.options,
                                                                 reuse=True)
             #patch discriminator
-            self.input_painting_patch_discr_predictions = discriminator(image=self.input_painting,
+
+            self.input_painting_patch_discr_predictions = patch_discriminator(image=self.input_painting,
                                                                   options=self.options,
                                                                   reuse=False)
-            self.input_photo_patch_discr_predictions = discriminator(image=self.input_photo,
+            self.input_photo_patch_discr_predictions = patch_discriminator(image=self.input_photo,
                                                                options=self.options,
                                                                reuse=True)
-            self.output_photo_patch_discr_predictions = discriminator(image=self.output_photo,
+            self.output_photo_patch_discr_predictions = patch_discriminator(image=self.output_photo,
                                                                 options=self.options,
                                                                 reuse=True)
 
