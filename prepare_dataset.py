@@ -60,7 +60,7 @@ class ArtDataset():
                 else:
                     image = scipy.misc.imresize(image, size=[800, 800])
 
-            if augmentor:
+            if True: #augmentor:
                 batch_image.append(augmentor(image).astype(np.float32))
             else:
                 batch_image.append((image).astype(np.float32))
@@ -103,16 +103,24 @@ class PlacesDataset():
          '/b/building_facade', '/c/cemetery']
     categories_names = [x[1:] for x in categories_names]
 
-    def __init__(self, path_to_dataset):
+    def __init__(self, path_to_dataset, use_full_dataset=False):
         self.dataset = []
-        for category_idx, category_name in enumerate(tqdm(self.categories_names)):
-            print(category_name, category_idx)
-            if os.path.exists(os.path.join(path_to_dataset, category_name)):
-                for file_name in tqdm(os.listdir(os.path.join(path_to_dataset, category_name))):
-                    self.dataset.append(os.path.join(path_to_dataset, category_name, file_name))
-            else:
-                print("Category %s can't be found in path %s. Skip it." %
-                      (category_name, os.path.join(path_to_dataset, category_name)))
+        if use_full_dataset:
+            for root, dirs, files in tqdm(os.walk(path_to_dataset)):
+                if len(files) != 0:
+                    for name in files:
+                        if name[0] != '.':
+                            self.dataset.append(os.path.join(root, name))
+
+        else:
+            for category_idx, category_name in enumerate(tqdm(self.categories_names)):
+                print(category_name, category_idx)
+                if os.path.exists(os.path.join(path_to_dataset, category_name)):
+                    for file_name in tqdm(os.listdir(os.path.join(path_to_dataset, category_name))):
+                        self.dataset.append(os.path.join(path_to_dataset, category_name, file_name))
+                else:
+                    print("Category %s can't be found in path %s. Skip it." %
+                          (category_name, os.path.join(path_to_dataset, category_name)))
 
         print("Finished. Constructed Places2 dataset of %d images." % len(self.dataset))
 
@@ -144,12 +152,25 @@ class PlacesDataset():
                 else:
                     image = scipy.misc.imresize(image, size=[800, 800])
 
-            batch_image.append(augmentor(image).astype(np.float32))
+            if augmentor:
+                batch_image.append(augmentor(image).astype(np.float32))
+            else:
+                batch_image.append((image).astype(np.float32))
+            #batch_image.append(augmentor(image).astype(np.float32))
 
         return {"image": np.asarray(batch_image)}
 
     def initialize_batch_worker(self, queue, augmentor, batch_size=1, seed=228):
+        import psutil
         np.random.seed(seed)
+        tqdm.write('process id: {}'.format(os.getpid()))
+        p = psutil.Process(os.getpid())
+        # set to lowest priority
+        niceness = p.nice(0)
+        if niceness == None:
+            niceness = 0
+        p.nice(18-niceness)
+
         while True:
             batch = self.get_batch(augmentor=augmentor, batch_size=batch_size)
             queue.put(batch)

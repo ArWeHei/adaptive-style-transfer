@@ -32,7 +32,8 @@ class Augmentor():
                  value_augm_shift=0.05, value_augm_scale=0.05,
                  affine_trnsfm_prb=0.5, affine_trnsfm_range=0.05,
                  horizontal_flip_prb=0.5,
-                 vertical_flip_prb=0.5):
+                 vertical_flip_prb=0.5,
+                 no_augmentation=False):
 
         self.crop_size = crop_size
 
@@ -55,9 +56,19 @@ class Augmentor():
         self.horizontal_flip_prb = horizontal_flip_prb
         self.vertical_flip_prb = vertical_flip_prb
 
+        self.no_augmentation = no_augmentation
+
+
     def __call__(self, image, is_inference=False):
         if is_inference:
             return cv2.resize(image, None, fx=self.crop_size[0], fy=self.crop_size[1], interpolation=cv2.INTER_CUBIC)
+        if self.no_augmentation:
+            # Crop out patch of desired size.
+            image = self.crop(image=image,
+                              crop_size=self.crop_size
+                              )
+
+            return image
 
         # If not inference stage apply the pipeline of augmentations.
         if self.scale_augm_prb > np.random.uniform():

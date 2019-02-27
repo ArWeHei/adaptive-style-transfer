@@ -94,6 +94,16 @@ parser.add_argument('--ndf',
                     default=64,
                     help='Number of filters in first conv layer of discriminator.')
 
+parser.add_argument('--use_full_dataset',
+                    dest='full_dataset',
+                    action='store_true',
+                    help='use full set of images without categories')
+
+parser.add_argument('--no-augmentation',
+                    dest='augmentation',
+                    action='store_false',
+                    help='prohibit image augmentation')
+
 # Weights of different losses.
 parser.add_argument('--dlw',
                     dest='discr_loss_weight',
@@ -140,8 +150,11 @@ args = parser.parse_args()
 
 def main(_):
 
-    tfconfig = tf.ConfigProto(allow_soft_placement=False)
+    tfconfig = tf.ConfigProto(allow_soft_placement=True)
+    #tfconfig.intra_op_parallelism_threads=1
+    #tfconfig.inter_op_parallelism_threads=1
     tfconfig.gpu_options.allow_growth = True
+
     with tf.Session(config=tfconfig) as sess:
         model = Artgan(sess, args)
 

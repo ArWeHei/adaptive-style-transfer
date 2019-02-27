@@ -58,14 +58,20 @@ class Artgan(object):
                               is_training \
                               path_to_content_dataset \
                               path_to_art_dataset \
-                              discr_loss_weight transformer_loss_weight feature_loss_weight')
+                              discr_loss_weight \
+                              transformer_loss_weight \
+                              feature_loss_weight \
+                              full_dataset augmentation')
         self.options = OPTIONS._make((args.batch_size, args.image_size,
                                       args.total_steps, args.save_freq, args.lr,
                                       args.ngf, args.ndf,
                                       args.phase == 'train',
                                       args.path_to_content_dataset,
                                       args.path_to_art_dataset,
-                                      args.discr_loss_weight, args.transformer_loss_weight, args.feature_loss_weight
+                                      args.discr_loss_weight,
+                                      args.transformer_loss_weight,
+                                      args.feature_loss_weight,
+                                      args.full_dataset, args.augmentation
                                       ))
 
         # Create all the folders for saving the model
@@ -267,31 +273,51 @@ class Artgan(object):
                                         reuse=False)
 
     def train(self, args, ckpt_nmbr=None):
+        import psutil as psu
         # Initialize augmentor.
-        augmentor = img_augm.Augmentor(crop_size=[self.options.image_size, self.options.image_size],
-                                       vertical_flip_prb=0.,
-                                       hsv_augm_prb=1.0,
-                                       hue_augm_shift=0.05,
-                                       saturation_augm_shift=0.05, saturation_augm_scale=0.05,
-                                       value_augm_shift=0.05, value_augm_scale=0.05, )
-        content_dataset_places = prepare_dataset.PlacesDataset(path_to_dataset=self.options.path_to_content_dataset)
-        art_dataset = prepare_dataset.ArtDataset(path_to_art_dataset=self.options.path_to_art_dataset)
+        art_augmentor = img_augm.Augmentor(
+                crop_size=[self.options.image_size, self.options.image_size],
+                vertical_flip_prb=0.,
+                hsv_augm_prb=1.0,
+                hue_augm_shift=0.05,
+                saturation_augm_shift=0.05, saturation_augm_scale=0.05,
+                value_augm_shift=0.05, value_augm_scale=0.05,
+                )
+        if self.options.augmentation:
+            content_augmentor = art_augmentor
+        else:
+            content_augmentor = img_augm.Augmentor(
+                crop_size=[self.options.image_size, self.options.image_size],
+                no_augmentation=True
+                )
+
+        content_dataset_places = prepare_dataset.PlacesDataset(
+                path_to_dataset=self.options.path_to_content_dataset,
+                use_full_dataset=self.options.full_dataset
+                )
+        art_dataset = prepare_dataset.ArtDataset(
+                path_to_art_dataset=self.options.path_to_art_dataset
+                )
 
 
         # Initialize queue workers for both datasets.
         q_art = multiprocessing.Queue(maxsize=10)
         q_content = multiprocessing.Queue(maxsize=10)
         jobs = []
+
+        tqdm.write('parent process id: {}'.format(os.getpid()))
         for i in range(5):
+            tqdm.write('process id: {}'.format(os.getpid()))
             p = multiprocessing.Process(target=content_dataset_places.initialize_batch_worker,
-                                        args=(q_content, augmentor, self.batch_size, i))
+                                        args=(q_content, content_augmentor, self.batch_size, i))
             p.start()
             jobs.append(p)
 
             p = multiprocessing.Process(target=art_dataset.initialize_batch_worker,
-                                        args=(q_art, augmentor, self.batch_size, i))
+                                        args=(q_art, art_augmentor, self.batch_size, i))
             p.start()
             jobs.append(p)
+
         print("Processes are started.")
         time.sleep(3)
 
@@ -308,6 +334,7 @@ class Artgan(object):
             else:
                 print(" [!] Load failed...")
 
+        tqdm.write('process id: {}'.format(os.getpid()))
         # Initial discriminator success rate.
         win_rate = args.discr_success_rate
         discr_success = args.discr_success_rate
@@ -367,9 +394,10 @@ class Artgan(object):
                            output_photo_batch=denormalize_arr_of_imgs(output_photos_),
                            filepath='%s/step_%d.jpg' % (self.sample_dir, step))
         print("Training is finished. Terminate jobs.")
-        for p in jobs:
-            p.join()
+        for idx, p in enumerate(jobs):
+            p.join(1)
             p.terminate()
+            print('job {} finished'.format(idx))
 
         print("Done.")
 
