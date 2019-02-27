@@ -105,8 +105,10 @@ venv.bak/
 
 *.hdf5
 *.zip
+data
 models
 logs
+evaluation
 evaluation/evaluation_data
 
 **/.DS_Store
