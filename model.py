@@ -115,6 +115,13 @@ class Artgan(object):
                                         options=self.options,
                                         reuse=False)
 
+            # Get output for painting input
+            self.output_painting = decoder(features=encoder(image=self.input_painting,
+                                                            options=self.options,
+                                                            reuse=True),
+                                           options=self.options,
+                                           reuse=True)
+
             # Get features of output images. Need them to compute feature loss.
             self.output_photo_features = encoder(image=self.output_photo,
                                                  options=self.options,
@@ -381,7 +388,7 @@ class Artgan(object):
 
             if step % 500 == 0:
                 output_paintings_, output_photos_= self.sess.run(
-                    [self.input_painting, self.output_photo],
+                    [self.output_painting, self.output_photo],
                     feed_dict={
                         self.input_painting: normalize_arr_of_imgs(batch_art['image']),
                         self.input_photo: normalize_arr_of_imgs(batch_content['image']),
