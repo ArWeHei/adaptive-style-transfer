@@ -118,9 +118,9 @@ class Artgan(object):
             # Get output for painting input
             self.output_painting = decoder(features=encoder(image=self.input_painting,
                                                             options=self.options,
-                                                            reuse=False),
+                                                            reuse=True),
                                            options=self.options,
-                                           reuse=False)
+                                           reuse=True)
 
             # Get features of output images. Need them to compute feature loss.
             self.output_photo_features = encoder(image=self.output_photo,
