@@ -94,10 +94,10 @@ parser.add_argument('--ndf',
                     default=64,
                     help='Number of filters in first conv layer of discriminator.')
 
-parser.add_argument('--use_small_dataset',
-                    dest='small_dataset',
+parser.add_argument('--use_full_dataset',
+                    dest='full_dataset',
                     action='store_true',
-                    help='use smaller set of images without categories')
+                    help='use full set of images without categories')
 
 parser.add_argument('--no-augmentation',
                     dest='augmentation',

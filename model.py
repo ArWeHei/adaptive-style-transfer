@@ -61,7 +61,7 @@ class Artgan(object):
                               discr_loss_weight \
                               transformer_loss_weight \
                               feature_loss_weight \
-                              small_dataset augmentation')
+                              full_dataset augmentation')
         self.options = OPTIONS._make((args.batch_size, args.image_size,
                                       args.total_steps, args.save_freq, args.lr,
                                       args.ngf, args.ndf,
@@ -71,7 +71,7 @@ class Artgan(object):
                                       args.discr_loss_weight,
                                       args.transformer_loss_weight,
                                       args.feature_loss_weight,
-                                      args.small_dataset, args.augmentation
+                                      args.full_dataset, args.augmentation
                                       ))
 
         # Create all the folders for saving the model
@@ -293,7 +293,7 @@ class Artgan(object):
 
         content_dataset_places = prepare_dataset.PlacesDataset(
                 path_to_dataset=self.options.path_to_content_dataset,
-                use_small_dataset=self.options.small_dataset
+                use_full_dataset=self.options.full_dataset
                 )
         art_dataset = prepare_dataset.ArtDataset(
                 path_to_art_dataset=self.options.path_to_art_dataset

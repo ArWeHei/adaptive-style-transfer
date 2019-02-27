@@ -103,12 +103,14 @@ class PlacesDataset():
          '/b/building_facade', '/c/cemetery']
     categories_names = [x[1:] for x in categories_names]
 
-    def __init__(self, path_to_dataset, use_small_dataset=False):
+    def __init__(self, path_to_dataset, use_full_dataset=False):
         self.dataset = []
-        if use_small_dataset:
-            for file_name in tqdm(os.listdir(path_to_dataset)):
-                if file_name[0] != '.':
-                    self.dataset.append(os.path.join(path_to_dataset, file_name))
+        if use_full_dataset:
+            for root, dirs, files in tqdm(os.walk(path_to_dataset)):
+                if len(files) != 0:
+                    for name in files:
+                        if name[0] != '.':
+                            self.dataset.append(os.path.join(root, name))
 
         else:
             for category_idx, category_name in enumerate(tqdm(self.categories_names)):
