@@ -89,7 +89,26 @@ class Artgan(object):
             os.makedirs(self.inference_dir)
 
         self._build_model()
-        self.saver = tf.train.Saver(max_to_keep=2)
+
+        #include case for loading only part of the model
+        ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
+        print('ckpt = {}'.format(ckpt))
+        ckpt_path = ckpt.model_checkpoint_path
+        #ckpt_path = os.path.join(self.checkpoint_dir)
+        print('path = {}'.format(ckpt_path))
+        if True:
+            ckptreader = tf.train.NewCheckpointReader(ckpt_path)
+            restore = dict()
+            for var in tf.trainable_variables():
+                name = var.name.split(':')[0]
+                if ckptreader.has_tensor(name):
+                    print('tensor {} exists'.format(name))
+                    restore[name] = var
+            self.saver = tf.train.Saver(restore, max_to_keep=2)
+
+        else:
+            self.saver = tf.train.Saver(max_to_keep=2)
+
         self.saver_long = tf.train.Saver(max_to_keep=None)
 
     def _build_model(self):
@@ -128,7 +147,7 @@ class Artgan(object):
             # Decode obtained features and convert to patch
             self.output_patch = get_patch(decoder(features=self.input_photo_features,
                                                   options=self.options,
-                                                  reuse=False))
+                                                  reuse=True))
 
             # Get features of output images. Need them to compute feature loss.
             self.output_photo_features = encoder(image=self.output_photo,
@@ -703,6 +722,7 @@ class Artgan(object):
             ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
             if ckpt and ckpt.model_checkpoint_path:
                 ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+                print(ckpt_name)
                 self.initial_step = int(ckpt_name.split("_")[-1].split(".")[0])
                 print("Load checkpoint %s. Initial step: %s." % (ckpt_name, self.initial_step))
                 self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))

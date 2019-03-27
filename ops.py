@@ -88,7 +88,7 @@ def get_patch(image, size=200):
     # If the input image was too small to comprise patch of size 'size',
     # resize image to desired size.
     if image.shape[0] < size or image.shape[1] < size:
-        return tf.image.resize_images(image, size)
+        return tf.image.resize_images(image, (size,size))
         #return cv2.resize(image, None, fx=size, fy=size, interpolation=cv2.INTER_CUBIC)
     rows, cols, chs = image.shape
     x = int(np.random.uniform(low=0, high=max(0, rows - size)))
